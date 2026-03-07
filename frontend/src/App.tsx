@@ -272,7 +272,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                  redirectTo: window.location.origin,
+                  redirectTo: 'https://tpm-receipt-guard.vercel.app',
                 },
               });
             }}
