@@ -268,7 +268,14 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
           <button
             type="button"
-            onClick={() => onLogin()}
+            onClick={async () => {
+              await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                  redirectTo: window.location.origin,
+                },
+              });
+            }}
             className="w-full py-3.5 bg-slate-800/60 hover:bg-slate-800 active:bg-slate-700 border border-slate-700 text-slate-300 font-medium rounded-xl transition-all flex items-center justify-center gap-3 text-[15px] group"
           >
             <svg className="w-[18px] h-[18px] group-hover:scale-105 transition-transform" viewBox="0 0 24 24">
