@@ -68,8 +68,9 @@ interface Toast {
   type: 'success' | 'error' | 'info';
 }
 
-// Backend API base path (proxied by Vite to http://localhost:8000)
-const API_BASE = '/api';
+// In production (Vercel), use the Railway backend URL.
+// In development (Vite), use '/api' which is proxied to localhost:8000.
+const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
   const [isLogin, setIsLogin] = useState(true);
