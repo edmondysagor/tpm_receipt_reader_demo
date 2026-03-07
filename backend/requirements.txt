@@ -5,3 +5,6 @@ pymupdf
 requests
 ollama
 python-dotenv
+pillow
+google-generativeai
+supabase
