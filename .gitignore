@@ -1,0 +1,44 @@
+# Node.js / Frontend
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+*.egg-info/
+*.egg
+
+# API keys & secrets
+api_key.md
+.receipt_ocr_api_key.txt
+user_api_key.txt
+
+# Supabase (do not commit real keys)
+# supabaseClient.js contains placeholder keys — update before production
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+npm-debug.log*
+
+# Uploads & temp
+uploads/
+tmp/
+temp/
