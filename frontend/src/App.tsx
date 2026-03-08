@@ -1205,26 +1205,31 @@ export default function App() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
                         >
-                          <button
-                            onClick={handleExecuteAnalysis}
-                            disabled={analyzing}
-                            className={`
-                              relative px-8 py-3 text-white font-bold rounded-lg shadow-[0_0_20px_rgba(13,127,242,0.4)] flex items-center gap-3 tracking-widest text-xs transition-all
-                              ${analyzing ? 'bg-slate-700 cursor-not-allowed' : 'bg-brand animate-glow'}
-                            `}
-                          >
-                            {analyzing ? (
-                              <>
-                                <Loader2 size={16} className="animate-spin" />
-                                ANALYZING...
-                              </>
-                            ) : (
-                              <>
-                                <Activity size={16} />
-                                EXECUTE ANALYSIS
-                              </>
-                            )}
-                          </button>
+                          <div className="flex flex-col items-center gap-3">
+                            <button
+                              onClick={handleExecuteAnalysis}
+                              disabled={analyzing}
+                              className={`
+                                relative px-8 py-3 text-white font-bold rounded-lg shadow-[0_0_20px_rgba(13,127,242,0.4)] flex items-center gap-3 tracking-widest text-xs transition-all
+                                ${analyzing ? 'bg-slate-700 cursor-not-allowed' : 'bg-brand animate-glow'}
+                              `}
+                            >
+                              {analyzing ? (
+                                <>
+                                  <Loader2 size={16} className="animate-spin" />
+                                  ANALYZING...
+                                </>
+                              ) : (
+                                <>
+                                  <Activity size={16} />
+                                  EXECUTE ANALYSIS
+                                </>
+                              )}
+                            </button>
+                            <p className="text-[10px] text-slate-500/80 max-w-[250px] text-center leading-tight">
+                              By clicking Execute, you acknowledge our <strong className="text-amber-500/70 font-semibold">Beta Privacy & Liability Terms</strong>.
+                            </p>
+                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
