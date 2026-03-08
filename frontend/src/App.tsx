@@ -616,12 +616,23 @@ export default function App() {
       selectedFiles.forEach(file => formData.append('files', file));
       formData.append('model', 'qwen3.5:4b');
 
+      // Get current session token for credit check
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
       const uploadRes = await fetch(`${API_BASE}/upload`, {
         method: 'POST',
         body: formData,
+        headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {},
       });
 
       if (!uploadRes.ok) {
+        // Handle insufficient credits (403)
+        if (uploadRes.status === 403) {
+          const errBody = await uploadRes.json().catch(() => null);
+          const errMsg = errBody?.detail?.message || 'Insufficient credits. Please top up to continue.';
+          throw new Error(errMsg);
+        }
         throw new Error(`Upload failed (${uploadRes.status})`);
       }
 

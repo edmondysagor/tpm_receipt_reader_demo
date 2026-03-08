@@ -7,9 +7,10 @@ import asyncio
 from typing import List, Optional, Annotated
 from pydantic import BaseModel
 
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from supabase import create_client, Client as SupabaseClient
 
 import fitz  # PyMuPDF
 import requests
@@ -23,6 +24,11 @@ from ollama import Client
 load_dotenv()
 
 app = FastAPI()
+
+# --- Supabase Admin Client (server-side, uses service_role key) ---
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+supabase_admin: SupabaseClient = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY else None
 
 app.add_middleware(
     CORSMiddleware,
@@ -292,7 +298,7 @@ def compress_image(img_bytes: bytes) -> bytes:
     return output.getvalue()
 
 
-async def process_document_task(job_id: str, file_paths: List[str], model_name: str = None):
+async def process_document_task(job_id: str, file_paths: List[str], model_name: str = None, user_id: str = None):
     try:
         update_job_progress(job_id, 10, "Extracting & compressing images...")
         
@@ -404,6 +410,14 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
             if dup_count > 0:
                 logging.info(f"Job {job_id}: Flagged {dup_count} duplicate(s).")
                 
+            # --- Post-deduction: deduct 1 credit after successful analysis ---
+            if user_id and supabase_admin:
+                try:
+                    supabase_admin.rpc("decrement_credit", {"row_id": user_id}).execute()
+                    logging.info(f"Job {job_id}: Deducted 1 credit for user {user_id}")
+                except Exception as credit_err:
+                    logging.error(f"Job {job_id}: Failed to deduct credit for user {user_id}: {credit_err}")
+            
             update_job_progress(job_id, 100, "Completed", result=all_results)
             
         except requests.exceptions.RequestException as req_err:
@@ -432,10 +446,39 @@ def list_models():
 async def upload_files(
     background_tasks: BackgroundTasks, 
     files: list[UploadFile],
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    authorization: Optional[str] = Header(None)
 ):
     if not files:
         return {"error": "No files uploaded."}
+    
+    # --- Credit Pre-check ---
+    user_id = None
+    if supabase_admin and authorization:
+        # Extract Bearer token
+        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+        try:
+            # Verify the JWT and get user info
+            user_resp = supabase_admin.auth.get_user(token)
+            user_id = user_resp.user.id
+            
+            # Check credits_balance from profiles table
+            profile = supabase_admin.table("profiles").select("id, credits_balance").eq("id", user_id).single().execute()
+            credits_balance = profile.data.get("credits_balance", 0) if profile.data else 0
+            
+            if credits_balance <= 0:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "message": "Your account has insufficient credits. Please top up at the Billing Center to continue.",
+                        "error_code": "INSUFFICIENT_CREDITS"
+                    }
+                )
+            logging.info(f"Credit check passed for user {user_id}: {credits_balance} credit(s) remaining")
+        except HTTPException:
+            raise  # Re-raise the 403
+        except Exception as e:
+            logging.warning(f"Credit check failed (non-blocking): {e}")
     
     # Validate model choice
     valid_model_ids = [m["id"] for m in AVAILABLE_MODELS]
@@ -454,7 +497,8 @@ async def upload_files(
 
     update_job_progress(job_id, 0, f"Upload complete, using model: {selected_model}")
     
-    background_tasks.add_task(process_document_task, job_id, saved_paths, selected_model)
+    # Pass user_id so we can deduct credits after successful analysis
+    background_tasks.add_task(process_document_task, job_id, saved_paths, selected_model, user_id)
     
     return {"job_id": job_id, "message": "Files uploaded successfully.", "model": selected_model}
 
