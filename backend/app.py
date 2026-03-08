@@ -7,7 +7,7 @@ import asyncio
 from typing import List, Optional, Annotated
 from pydantic import BaseModel
 
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Header, HTTPException
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from supabase import create_client, Client as SupabaseClient
