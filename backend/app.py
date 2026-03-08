@@ -410,13 +410,15 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
             if dup_count > 0:
                 logging.info(f"Job {job_id}: Flagged {dup_count} duplicate(s).")
                 
-            # --- Post-deduction: deduct 1 credit after successful analysis ---
+            # --- Post-deduction: deduct credits based on number of files processed ---
             if user_id and supabase_admin:
+                num_files = len(file_paths)
                 try:
-                    supabase_admin.rpc("decrement_credit", {"row_id": user_id}).execute()
-                    logging.info(f"Job {job_id}: Deducted 1 credit for user {user_id}")
+                    # Atomically decrement by number of files processed
+                    supabase_admin.rpc("decrement_credits", {"row_id": user_id, "amount": num_files}).execute()
+                    logging.info(f"Job {job_id}: Deducted {num_files} credit(s) for user {user_id}")
                 except Exception as credit_err:
-                    logging.error(f"Job {job_id}: Failed to deduct credit for user {user_id}: {credit_err}")
+                    logging.error(f"Job {job_id}: Failed to deduct credits for user {user_id}: {credit_err}")
             
             update_job_progress(job_id, 100, "Completed", result=all_results)
             
