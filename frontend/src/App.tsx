@@ -368,6 +368,7 @@ export default function App() {
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
@@ -955,7 +956,7 @@ export default function App() {
 
       <div className={`flex w-full transition-all duration-500 ${!hasAgreedToDisclaimer ? 'blur-sm pointer-events-none select-none opacity-50' : ''}`}>
         {/* Sidebar */}
-        <aside className="w-64 border-r border-slate-800/50 glass-effect hidden lg:flex flex-col sticky top-0 h-screen z-50">
+        <aside className={`w-64 border-r border-slate-800/50 glass-effect hidden ${isDesktopSidebarOpen ? 'lg:flex' : 'lg:hidden'} flex-col sticky top-0 h-screen z-50 transition-all duration-300`}>
           <div className="p-6">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-2 h-8 bg-brand rounded-full shadow-[0_0_10px_rgba(13,127,242,0.5)]" />
@@ -1071,18 +1072,26 @@ export default function App() {
         <main className="flex-1 flex flex-col min-w-0 pb-safe">
           {/* Topbar */}
           <header className="h-16 border-b border-slate-800/50 glass-effect flex items-center justify-between px-4 sm:px-8 sticky top-0 z-40">
-            <div className="flex items-center gap-3 lg:hidden">
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => setIsMobileMenuOpen(true)}
+                onClick={() => {
+                  if (window.innerWidth >= 1024) {
+                    setIsDesktopSidebarOpen(!isDesktopSidebarOpen);
+                  } else {
+                    setIsMobileMenuOpen(true);
+                  }
+                }}
                 className="p-1.5 -ml-1.5 text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-brand/50 rounded-lg"
               >
                 <Menu size={22} />
               </button>
-              <div className="w-1.5 h-5 bg-brand rounded-full hidden sm:block" />
-              <h1 className="text-base font-bold text-white tracking-tight truncate sm:max-w-none max-w-[140px]">
-                <span className="hidden sm:inline">TPM Receipt Guard (Beta)</span>
-                <span className="sm:hidden">Receipt Guard</span>
-              </h1>
+              <div className={`flex items-center gap-3 ${isDesktopSidebarOpen ? 'lg:hidden' : ''}`}>
+                <div className="w-1.5 h-5 bg-brand rounded-full hidden sm:block" />
+                <h1 className="text-base font-bold text-white tracking-tight truncate sm:max-w-none max-w-[140px]">
+                  <span className="hidden sm:inline">TPM Receipt Guard (Beta)</span>
+                  <span className="sm:hidden">Receipt Guard</span>
+                </h1>
+              </div>
             </div>
 
             <div className="hidden md:flex items-center gap-2 text-slate-500 text-xs font-mono">
