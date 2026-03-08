@@ -308,6 +308,23 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
+  const [creditsBalance, setCreditsBalance] = useState<number | null>(null);
+
+  // Fetch credits balance from Supabase profiles table
+  const fetchCredits = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('credits_balance')
+        .eq('id', userId)
+        .single();
+      if (!error && data) {
+        setCreditsBalance(data.credits_balance ?? 0);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch credits:', e);
+    }
+  };
 
   // Listen to Supabase auth state changes
   useEffect(() => {
@@ -317,6 +334,7 @@ export default function App() {
       if (session?.user) {
         setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User');
         setUserEmail(session.user.email || '');
+        fetchCredits(session.user.id);
       }
       setAuthLoading(false);
     });
@@ -327,9 +345,11 @@ export default function App() {
       if (session?.user) {
         setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User');
         setUserEmail(session.user.email || '');
+        fetchCredits(session.user.id);
       } else {
         setUserName('');
         setUserEmail('');
+        setCreditsBalance(null);
       }
     });
 
@@ -714,6 +734,10 @@ export default function App() {
               return [...without, ...newRows];
             });
             addToast(`Analysis complete — ${state.result.length} receipt(s) extracted`, 'success');
+            // Refresh credit balance after successful analysis
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (session?.user) fetchCredits(session.user.id);
+            });
           }
 
           // Clear files
@@ -924,6 +948,14 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-6">
+              {/* Credit Balance Badge */}
+              {creditsBalance !== null && (
+                <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1">
+                  <span className="text-sm">🪙</span>
+                  <span className="text-xs font-semibold text-amber-400">{creditsBalance}</span>
+                  <span className="text-[10px] text-amber-400/70 hidden sm:inline">Credits</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-right">
                 <div className="hidden sm:block">
                   <div className="text-xs font-medium text-white">{userName}</div>
