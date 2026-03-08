@@ -1003,7 +1003,7 @@ export default function App() {
 
             <div className="hidden md:flex items-center gap-2 text-slate-500 text-xs font-mono">
               <Activity size={14} className="text-brand" />
-              <span>TPM Receipt Guard v1.2.0</span>
+              <span>TPM Receipt Guard v1.3.0</span>
             </div>
 
             <div className="flex items-center gap-6">
