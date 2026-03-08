@@ -1149,15 +1149,17 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex justify-center">
+                <div className="flex flex-col items-center justify-center gap-3">
                   <button
-                    onClick={handleTopUp}
-                    disabled={isCheckoutLoading}
-                    className={`px-8 py-3 w-full bg-gradient-to-r from-brand to-blue-600 hover:from-blue-500 hover:to-brand text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(13,127,242,0.5)] transition-all flex items-center justify-center gap-2 ${isCheckoutLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    disabled={true}
+                    className={`px-8 py-3 w-full bg-gradient-to-r from-brand to-blue-600/50 text-white/70 font-semibold rounded-lg shadow-none cursor-not-allowed flex items-center justify-center gap-2`}
                   >
-                    {isCheckoutLoading ? <Loader2 size={18} className="animate-spin" /> : <Activity size={18} />}
-                    {isCheckoutLoading ? 'Redirecting to Stripe...' : 'Checkout via Stripe'}
+                    <Activity size={18} />
+                    Checkout via Stripe
                   </button>
+                  <span className="text-brand text-sm font-medium animate-pulse tracking-wide">
+                    ✨ Coming soon ✨
+                  </span>
                 </div>
               </motion.div>
             </motion.div>
