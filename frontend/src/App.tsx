@@ -1007,14 +1007,30 @@ export default function App() {
             </div>
 
             <div className="flex items-center gap-6">
-              {/* Credit Balance Badge */}
-              {creditsBalance !== null && (
-                <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1">
-                  <span className="text-sm">🪙</span>
-                  <span className="text-xs font-semibold text-amber-400">{creditsBalance}</span>
-                  <span className="text-[10px] text-amber-400/70 hidden sm:inline">Credits</span>
-                </div>
-              )}
+              {/* Credit Balance Badge & Top Up */}
+              <div className="flex items-center gap-3">
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Replace with actual Stripe link
+                    window.location.href = '#';
+                  }}
+                  className="px-3 py-1 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand rounded-full text-xs font-semibold transition-all flex items-center gap-1 shadow-[0_0_10px_rgba(13,127,242,0.15)] hover:shadow-[0_0_15px_rgba(13,127,242,0.3)]"
+                >
+                  <Activity size={12} />
+                  Top Up
+                </a>
+
+                {creditsBalance !== null && (
+                  <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1">
+                    <span className="text-sm">🪙</span>
+                    <span className="text-xs font-semibold text-amber-400">{creditsBalance}</span>
+                    <span className="text-[10px] text-amber-400/70 hidden sm:inline">Credits</span>
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center gap-2 text-right">
                 <div className="hidden sm:block">
                   <div className="text-xs font-medium text-white">{userName}</div>
