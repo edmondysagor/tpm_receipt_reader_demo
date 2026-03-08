@@ -175,8 +175,13 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
         <div className="bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-8 pb-10 shadow-2xl border border-slate-800/60">
 
           <div className="flex flex-col items-center mb-8 text-center pt-2">
-            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-4 shadow-xl shadow-brand/10 overflow-hidden border border-white/10 p-2">
-              <img src="/receipt_guard_logo.png" alt="Receipt Guard Logo" className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(13,127,242,0.6)]" />
+            <div className="w-24 h-24 rounded-[2rem] bg-white/5 flex items-center justify-center mb-6 shadow-2xl shadow-brand/20 overflow-hidden border border-white/10 relative group">
+              <img
+                src="/receipt_guard_logo.png"
+                alt="Receipt Guard Logo"
+                className="w-full h-full object-cover scale-110 transition-transform duration-500 group-hover:scale-125"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-brand/20 to-transparent pointer-events-none" />
             </div>
             <h2 className="text-xl font-semibold text-brand tracking-widest uppercase mb-1 flex items-center gap-2">
               <Activity size={18} />
