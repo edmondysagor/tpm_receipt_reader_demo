@@ -20,10 +20,19 @@ import io
 from fastapi.responses import HTMLResponse
 from dotenv import load_dotenv
 from ollama import Client
+import stripe
 
 load_dotenv()
 
 app = FastAPI()
+
+# --- Stripe Configuration ---
+stripe.api_key = os.getenv("STRIPE_API_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+# E.g., price_1T8i9DRr0KsGcXMwOsnYXHMX
+STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
+# Ensure your frontend URL is set correctly in env (for redirects)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 # --- Supabase Admin Client (server-side, uses service_role key) ---
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
@@ -436,6 +445,83 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
                 os.remove(path)
             except:
                 pass
+# --- Stripe Payment Endpoints ---
+
+@app.post("/create-checkout-session")
+async def create_checkout_session(authorization: Optional[str] = Header(None)):
+    """Creates a Stripe Checkout Session for purchasing credits."""
+    if not stripe.api_key or not STRIPE_PRICE_ID:
+        raise HTTPException(status_code=500, detail="Stripe is not configured on the server.")
+        
+    if not authorization or not supabase_admin:
+        raise HTTPException(status_code=401, detail="Missing authorization or Supabase admin client.")
+        
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    
+    try:
+        # Verify user to get their ID
+        user_resp = supabase_admin.auth.get_user(token)
+        user_id = user_resp.user.id
+        
+        # Create checkout session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[
+                {
+                    'price': STRIPE_PRICE_ID,
+                    'quantity': 1,
+                },
+            ],
+            mode='payment',
+            success_url=f"{FRONTEND_URL}/?payment=success",
+            cancel_url=f"{FRONTEND_URL}/?payment=cancelled",
+            client_reference_id=user_id,  # Crucial: links payment to Supabase user
+        )
+        return {"url": checkout_session.url}
+        
+    except Exception as e:
+        logging.error(f"Failed to create checkout session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/stripe-webhook")
+async def stripe_webhook(request: Request):
+    """Listens for successful Stripe payments and grants credits."""
+    payload = await request.body()
+    sig_header = request.headers.get("Stripe-Signature")
+    
+    if not sig_header or not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=400, detail="Missing signature or webhook secret")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        # Invalid payload
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError as e:
+        # Invalid signature
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    # Handle the checkout.session.completed event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        user_id = session.get('client_reference_id')
+        
+        if user_id and supabase_admin:
+            try:
+                # Grant 50 credits to the user using our new RPC function
+                supabase_admin.rpc("increment_credits", {"row_id": user_id, "amount": 50}).execute()
+                logging.info(f"Successfully added 50 credits to user {user_id} via Stripe Checkout.")
+            except Exception as e:
+                logging.error(f"Stripe Webhook Error: Failed to increment credits for user {user_id}: {e}")
+                raise HTTPException(status_code=500, detail="Failed to update database")
+        else:
+            logging.warning("Checkout Session completed but no client_reference_id (user_id) found.")
+
+    return {"status": "success"}
 
 
 @app.get("/models")

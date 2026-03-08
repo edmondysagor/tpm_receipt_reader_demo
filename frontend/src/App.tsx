@@ -372,6 +372,7 @@ export default function App() {
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
   // AI Disclaimer state
   const [hasAgreedToDisclaimer, setHasAgreedToDisclaimer] = useState(() => {
@@ -437,6 +438,36 @@ export default function App() {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 5000);
+  };
+  // --- Credit and Billing Logic ---
+  const handleTopUp = async () => {
+    try {
+      setIsCheckoutLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      // Replace API_BASE with your actual backend URL or use the existing const
+      const response = await fetch(`${API_BASE}/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      addToast(error.message || 'Payment service unavailable', 'error');
+    } finally {
+      setIsCheckoutLoading(false);
+    }
   };
 
   const ACCEPTED_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
@@ -872,14 +903,14 @@ export default function App() {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    // NOTE: Replace this '#' with your actual Stripe payment link or routing logic
-                    window.location.href = '#';
-                    setShowCreditModal(false);
+                    if (!isCheckoutLoading) {
+                      handleTopUp();
+                    }
                   }}
-                  className="px-8 py-3 w-full sm:w-auto bg-gradient-to-r from-brand to-blue-600 hover:from-blue-500 hover:to-brand text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(13,127,242,0.5)] transition-all flex items-center justify-center gap-2"
+                  className={`px-8 py-3 w-full sm:w-auto bg-gradient-to-r from-brand to-blue-600 hover:from-blue-500 hover:to-brand text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(13,127,242,0.5)] transition-all flex items-center justify-center gap-2 ${isCheckoutLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
-                  <Activity size={18} />
-                  Visit Billing Center
+                  {isCheckoutLoading ? <Loader2 size={18} className="animate-spin" /> : <Activity size={18} />}
+                  {isCheckoutLoading ? 'Redirecting...' : 'Visit Billing Center'}
                 </a>
               </div>
             </motion.div>
@@ -1102,18 +1133,14 @@ export default function App() {
             <div className="flex items-center gap-6">
               {/* Credit Balance Badge & Top Up */}
               <div className="flex items-center gap-3">
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // Replace with actual Stripe link
-                    window.location.href = '#';
-                  }}
-                  className="px-3 py-1 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand rounded-full text-xs font-semibold transition-all flex items-center gap-1 shadow-[0_0_10px_rgba(13,127,242,0.15)] hover:shadow-[0_0_15px_rgba(13,127,242,0.3)]"
+                <button
+                  onClick={handleTopUp}
+                  disabled={isCheckoutLoading}
+                  className="px-3 py-1 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand rounded-full text-xs font-semibold transition-all flex items-center gap-1 shadow-[0_0_10px_rgba(13,127,242,0.15)] hover:shadow-[0_0_15px_rgba(13,127,242,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Activity size={12} />
+                  {isCheckoutLoading ? <Loader2 size={12} className="animate-spin" /> : <Activity size={12} />}
                   Top Up
-                </a>
+                </button>
 
                 {creditsBalance !== null && (
                   <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-1">

@@ -8,3 +8,4 @@ python-dotenv
 pillow
 google-generativeai
 supabase
+stripe
