@@ -614,7 +614,7 @@ export default function App() {
       // 1. Upload files to backend
       const formData = new FormData();
       selectedFiles.forEach(file => formData.append('files', file));
-      if (selectedModel) formData.append('model', selectedModel);
+      formData.append('model', 'qwen3.5:4b');
 
       const uploadRes = await fetch(`${API_BASE}/upload`, {
         method: 'POST',
@@ -973,69 +973,20 @@ export default function App() {
                   <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
                     <Database size={120} />
                   </div>
-                  <div className="relative z-10 flex flex-col md:flex-row gap-8">
-                    {/* Left: Upload Info */}
-                    <div className="flex-1 space-y-4">
-                      <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <div className="relative z-10 flex flex-col items-center gap-6">
+                    {/* Title & Description */}
+                    <div className="text-center space-y-2">
+                      <h3 className="text-xl font-semibold text-white flex items-center justify-center gap-2">
                         <Upload className="text-brand" size={20} />
                         Data Ingestion
                       </h3>
                       <p className="text-sm text-slate-400 max-w-md leading-relaxed">
                         Batch upload supported: <span className="text-white font-medium">PDF, PNG, JPEG</span>. Max file size: 50MB.
                       </p>
-
-                      {/* Model Selector */}
-                      <div className="pt-4 flex items-center gap-3">
-                        <Cpu size={16} className="text-slate-500" />
-                        <span className="text-xs font-mono text-slate-500 uppercase">Model</span>
-                        <select
-                          value={selectedModel}
-                          onChange={(e) => setSelectedModel(e.target.value)}
-                          className="bg-slate-900 border border-slate-700 text-sm rounded-md px-3 py-1.5 focus:border-brand focus:ring-1 focus:ring-brand outline-none text-slate-300 w-64"
-                        >
-                          {availableModels.map(model => (
-                            <option key={model.id} value={model.id}>{model.name}</option>
-                          ))}
-                        </select>
-                        <span className="text-[10px] text-brand/70 italic hidden sm:inline ml-2">
-                          Ultra-light text model
-                        </span>
-                      </div>
-
-                      <AnimatePresence>
-                        {selectedFiles.length > 0 && !uploading && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                            className="pt-2"
-                          >
-                            <button
-                              onClick={handleExecuteAnalysis}
-                              disabled={analyzing}
-                              className={`
-                              relative px-8 py-3 text-white font-bold rounded-lg shadow-[0_0_20px_rgba(13,127,242,0.4)] flex items-center gap-3 tracking-widest text-xs transition-all
-                              ${analyzing ? 'bg-slate-700 cursor-not-allowed' : 'bg-brand animate-glow'}
-                            `}
-                            >
-                              {analyzing ? (
-                                <>
-                                  <Loader2 size={16} className="animate-spin" />
-                                  ANALYZING...
-                                </>
-                              ) : (
-                                <>
-                                  <Activity size={16} />
-                                  EXECUTE ANALYSIS
-                                </>
-                              )}
-                            </button>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
                     </div>
 
-                    <div className="w-full md:w-[400px]">
+                    {/* Upload Box – centered */}
+                    <div className="w-full max-w-[500px]">
                       {selectedFiles.length === 0 ? (
                         <label
                           className={`
@@ -1127,6 +1078,38 @@ export default function App() {
                         </div>
                       )}
                     </div>
+
+                    {/* Execute Analysis Button */}
+                    <AnimatePresence>
+                      {selectedFiles.length > 0 && !uploading && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                        >
+                          <button
+                            onClick={handleExecuteAnalysis}
+                            disabled={analyzing}
+                            className={`
+                              relative px-8 py-3 text-white font-bold rounded-lg shadow-[0_0_20px_rgba(13,127,242,0.4)] flex items-center gap-3 tracking-widest text-xs transition-all
+                              ${analyzing ? 'bg-slate-700 cursor-not-allowed' : 'bg-brand animate-glow'}
+                            `}
+                          >
+                            {analyzing ? (
+                              <>
+                                <Loader2 size={16} className="animate-spin" />
+                                ANALYZING...
+                              </>
+                            ) : (
+                              <>
+                                <Activity size={16} />
+                                EXECUTE ANALYSIS
+                              </>
+                            )}
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
               </section>
@@ -1587,7 +1570,7 @@ export default function App() {
             ))}
           </AnimatePresence>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 }
