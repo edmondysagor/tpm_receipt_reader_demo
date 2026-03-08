@@ -1133,10 +1133,7 @@ export default function App() {
                   <User size={16} />
                 </div>
               </div>
-              <button className="relative text-slate-400 hover:text-white transition-colors">
-                <Bell size={20} />
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-brand rounded-full" />
-              </button>
+
             </div>
           </header>
 
