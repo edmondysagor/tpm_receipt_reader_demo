@@ -912,13 +912,13 @@ export default function App() {
 
               <div className="bg-slate-900/50 rounded-lg p-5 text-sm space-y-4 mb-6 border border-slate-800 text-slate-300">
                 <p>
-                  <strong>1. Handwriting Constraints:</strong> This system uses advanced language models. While highly accurate with printed receipts, <span className="text-amber-400">handwritten numbers or ambiguous text can trigger misinterpretations</span> (e.g., misreading a crossed-out number).
+                  <strong>1. Strict Privacy (No Data Retained):</strong> This is a Beta application. We do NOT store your uploaded files or extracted data. Images are processed and immediately discarded. <span className="text-amber-400">Refreshing the page will clear your session history permanently.</span>
                 </p>
                 <p>
-                  <strong>2. User Verification:</strong> Data is provided "as is". You are responsible for independently verifying all critical numbers, especially the Total Amount, before finalizing or exporting records to CSV.
+                  <strong>2. Handwriting Limitations:</strong> This system uses advanced language models. While highly accurate with printed receipts, handwritten numbers or ambiguous text can trigger misinterpretations.
                 </p>
                 <p>
-                  <strong>3. Data Beta:</strong> This is a public beta application. Ongoing ingestion tests help refine the AI’s parsing capabilities.
+                  <strong>3. User Verification Required:</strong> Data is provided "as is". You are responsible for independently verifying all critical numbers, especially the Total Amount, before finalizing or exporting records to CSV.
                 </p>
               </div>
 
@@ -1242,10 +1242,10 @@ export default function App() {
                   </div>
                   <div className="flex-1">
                     <h4 className="text-amber-500 font-medium text-sm mb-1">
-                      AI Accuracy & Liability Notice
+                      Beta Privacy & AI Liability Notice
                     </h4>
                     <p className="text-amber-400/80 text-xs leading-relaxed">
-                      This is an AI-powered MVP. Data is automatically extracted by the engine and may be subject to inaccuracies due to complex handwriting or poor image quality. While the engine achieves high accuracy on printed text, handwritten notes can trigger misinterpretations.
+                      We DO NOT store your files; data is processed and immediately discarded. Refreshing the page will clear your session history. Data is automatically extracted by the AI and may be subject to inaccuracies due to complex handwriting or poor image quality.
                       <strong className="text-amber-500 font-semibold block mt-1">
                         Please independently verify key numbers (e.g. Total Amount) and use the inline editing feature to correct any errors before exporting.
                       </strong>
