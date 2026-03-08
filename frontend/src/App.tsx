@@ -357,6 +357,7 @@ export default function App() {
   }, []);
   const [isHoveringUpload, setIsHoveringUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [analyzing, setAnalyzing] = useState(false);
@@ -649,9 +650,8 @@ export default function App() {
       if (!uploadRes.ok) {
         // Handle insufficient credits (403)
         if (uploadRes.status === 403) {
-          const errBody = await uploadRes.json().catch(() => null);
-          const errMsg = errBody?.detail?.message || 'Insufficient credits. Please top up to continue.';
-          throw new Error(errMsg);
+          setShowCreditModal(true);
+          throw new Error('INSUFFICIENT_CREDITS');
         }
         throw new Error(`Upload failed (${uploadRes.status})`);
       }
@@ -766,6 +766,13 @@ export default function App() {
 
     } catch (error: any) {
       setAnalyzing(false);
+
+      if (error.message === 'INSUFFICIENT_CREDITS') {
+        // Remove the placeholder row entirely so it doesn't leave a "Failed" ghost row if credits are 0
+        setTableData(prev => prev.filter(row => row.id !== placeholderId));
+        return; // Modal is already open, no need for toast
+      }
+
       setTableData(prev =>
         prev.map(row =>
           row.id === placeholderId
@@ -824,6 +831,58 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-300 font-sans selection:bg-brand/30 selection:text-white">
+
+      {/* Insufficient Credits Modal Layer */}
+      <AnimatePresence>
+        {showCreditModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="glass-effect rounded-2xl w-full max-w-md p-8 shadow-2xl border border-red-500/30 relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 to-orange-500" />
+              <button
+                onClick={() => setShowCreditModal(false)}
+                className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="flex flex-col items-center text-center space-y-4 mb-8">
+                <div className="w-16 h-16 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-2">
+                  <AlertCircle size={32} />
+                </div>
+                <h2 className="text-2xl font-bold text-white">Credits Exhausted</h2>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Your current balance is 0. To continue with high-precision AI analysis, please choose a recharge package.
+                </p>
+              </div>
+
+              <div className="flex justify-center">
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // NOTE: Replace this '#' with your actual Stripe payment link or routing logic
+                    window.location.href = '#';
+                    setShowCreditModal(false);
+                  }}
+                  className="px-8 py-3 w-full sm:w-auto bg-gradient-to-r from-brand to-blue-600 hover:from-blue-500 hover:to-brand text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(13,127,242,0.5)] transition-all flex items-center justify-center gap-2"
+                >
+                  <Activity size={18} />
+                  Visit Billing Center
+                </a>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* AI Disclaimer Modal Overlay */}
       <AnimatePresence>
