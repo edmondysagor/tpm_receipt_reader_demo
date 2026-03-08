@@ -462,8 +462,8 @@ async def upload_files(
             user_resp = supabase_admin.auth.get_user(token)
             user_id = user_resp.user.id
             
-            # Check credits_balance from profiles table
-            profile = supabase_admin.table("profiles").select("id, credits_balance").eq("id", user_id).single().execute()
+            # Check credits_balance from user_credits table
+            profile = supabase_admin.table("user_credits").select("id, credits_balance").eq("id", user_id).single().execute()
             credits_balance = profile.data.get("credits_balance", 0) if profile.data else 0
             
             if credits_balance <= 0:

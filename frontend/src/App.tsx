@@ -314,7 +314,7 @@ export default function App() {
   const fetchCredits = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('user_credits')
         .select('credits_balance')
         .eq('id', userId)
         .single();
