@@ -858,9 +858,9 @@ export default function App() {
                 <div className="w-16 h-16 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center mb-2">
                   <AlertCircle size={32} />
                 </div>
-                <h2 className="text-2xl font-bold text-white">Credits Exhausted</h2>
+                <h2 className="text-2xl font-bold text-white">Insufficient Credits</h2>
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  Your current balance is 0. To continue with high-precision AI analysis, please choose a recharge package.
+                  Your current credit balance is insufficient to process all selected files. To continue with high-precision AI analysis, please choose a recharge package.
                 </p>
               </div>
 
