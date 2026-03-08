@@ -468,15 +468,16 @@ async def upload_files(
             profile = supabase_admin.table("user_credits").select("id, credits_balance").eq("id", user_id).single().execute()
             credits_balance = profile.data.get("credits_balance", 0) if profile.data else 0
             
-            if credits_balance <= 0:
+            required_credits = len(files)
+            if credits_balance < required_credits:
                 raise HTTPException(
                     status_code=403,
                     detail={
-                        "message": "Your account has insufficient credits. Please top up at the Billing Center to continue.",
+                        "message": f"Your account has insufficient credits. You need {required_credits} credits but only have {credits_balance}. Please top up at the Billing Center.",
                         "error_code": "INSUFFICIENT_CREDITS"
                     }
                 )
-            logging.info(f"Credit check passed for user {user_id}: {credits_balance} credit(s) remaining")
+            logging.info(f"Credit check passed for user {user_id}: {credits_balance} credit(s) remaining, {required_credits} required")
         except HTTPException:
             raise  # Re-raise the 403
         except Exception as e:
