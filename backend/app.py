@@ -7,7 +7,7 @@ import asyncio
 from typing import List, Optional, Annotated
 from pydantic import BaseModel
 
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Header, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Header, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from supabase import create_client, Client as SupabaseClient
@@ -46,6 +46,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """FastAPI Dependency to verify Supabase JWT and return the user ID."""
+    token = credentials.credentials
+    if not supabase_admin:
+        raise HTTPException(status_code=500, detail="Supabase admin client not configured")
+    try:
+        user_resp = supabase_admin.auth.get_user(token)
+        if not user_resp or not user_resp.user:
+            raise HTTPException(status_code=401, detail="Invalid session")
+        return user_resp.user.id
+    except Exception as e:
+        logging.error(f"Token verification failed: {e}")
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 from fastapi.responses import HTMLResponse
 
@@ -448,20 +466,12 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
 # --- Stripe Payment Endpoints ---
 
 @app.post("/create-checkout-session")
-async def create_checkout_session(authorization: Optional[str] = Header(None)):
+async def create_checkout_session(user_id: str = Depends(get_current_user)):
     """Creates a Stripe Checkout Session for purchasing credits."""
     if not stripe.api_key or not STRIPE_PRICE_ID:
         raise HTTPException(status_code=500, detail="Stripe is not configured on the server.")
         
-    if not authorization or not supabase_admin:
-        raise HTTPException(status_code=401, detail="Missing authorization or Supabase admin client.")
-        
-    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-    
     try:
-        # Verify user to get their ID
-        user_resp = supabase_admin.auth.get_user(token)
-        user_id = user_resp.user.id
         
         # Create checkout session
         checkout_session = stripe.checkout.Session.create(
@@ -535,20 +545,14 @@ async def upload_files(
     background_tasks: BackgroundTasks, 
     files: list[UploadFile],
     model: Optional[str] = None,
-    authorization: Optional[str] = Header(None)
+    user_id: str = Depends(get_current_user)
 ):
     if not files:
         return {"error": "No files uploaded."}
     
     # --- Credit Pre-check ---
-    user_id = None
-    if supabase_admin and authorization:
-        # Extract Bearer token
-        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if supabase_admin:
         try:
-            # Verify the JWT and get user info
-            user_resp = supabase_admin.auth.get_user(token)
-            user_id = user_resp.user.id
             
             # Check credits_balance from user_credits table
             profile = supabase_admin.table("user_credits").select("id, credits_balance").eq("id", user_id).single().execute()
