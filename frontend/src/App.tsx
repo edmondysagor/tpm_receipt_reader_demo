@@ -860,7 +860,7 @@ export default function App() {
                 </div>
                 <h2 className="text-2xl font-bold text-white">Insufficient Credits</h2>
                 <p className="text-slate-400 text-sm leading-relaxed">
-                  Your current credit balance is insufficient to process all selected files. To continue with high-precision AI analysis, please choose a recharge package.
+                  Your current credit balance is insufficient to process all selected files. Please choose a recharge package or reduce the number of uploaded files to continue.
                 </p>
               </div>
 
