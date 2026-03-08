@@ -373,6 +373,7 @@ export default function App() {
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false);
 
   // AI Disclaimer state
   const [hasAgreedToDisclaimer, setHasAgreedToDisclaimer] = useState(() => {
@@ -904,7 +905,8 @@ export default function App() {
                   onClick={(e) => {
                     e.preventDefault();
                     if (!isCheckoutLoading) {
-                      handleTopUp();
+                      setShowCreditModal(false);
+                      setIsTopUpModalOpen(true);
                     }
                   }}
                   className={`px-8 py-3 w-full sm:w-auto bg-gradient-to-r from-brand to-blue-600 hover:from-blue-500 hover:to-brand text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(13,127,242,0.5)] transition-all flex items-center justify-center gap-2 ${isCheckoutLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
@@ -1099,6 +1101,69 @@ export default function App() {
           )}
         </AnimatePresence>
 
+        {/* Top Up Modal Layer */}
+        <AnimatePresence>
+          {isTopUpModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="glass-effect rounded-2xl w-full max-w-md p-8 shadow-2xl border border-brand/30 relative overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand to-emerald-400" />
+                <button
+                  onClick={() => setIsTopUpModalOpen(false)}
+                  className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
+                  disabled={isCheckoutLoading}
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="flex flex-col items-center text-center space-y-4 mb-8">
+                  <div className="w-16 h-16 rounded-full bg-brand/10 text-brand flex items-center justify-center mb-2">
+                    <Activity size={32} />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white">Get More Credits</h2>
+                  <p className="text-slate-400 text-sm leading-relaxed">
+                    Power up your receipt OCR and document analysis with more credits.
+                  </p>
+                </div>
+
+                {/* Pricing Cards */}
+                <div className="space-y-4 mb-8">
+                  <div className="border border-brand/40 bg-brand/10 rounded-xl p-5 flex items-center justify-between relative overflow-hidden group hover:border-brand/60 transition-colors">
+                    <div className="absolute inset-0 bg-gradient-to-r from-brand/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative z-10 flex flex-col items-start gap-1">
+                      <span className="text-white font-bold text-2xl">130 Credits</span>
+                      <span className="text-brand text-xs font-semibold bg-brand/10 border border-brand/20 px-2.5 py-1 rounded-full w-fit">One-time purchase</span>
+                    </div>
+                    <div className="relative z-10 text-right flex flex-col items-end">
+                      <span className="text-3xl font-black text-white">$10</span>
+                      <span className="text-brand/60 text-xs font-medium tracking-wide">USD</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleTopUp}
+                    disabled={isCheckoutLoading}
+                    className={`px-8 py-3 w-full bg-gradient-to-r from-brand to-blue-600 hover:from-blue-500 hover:to-brand text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(13,127,242,0.5)] transition-all flex items-center justify-center gap-2 ${isCheckoutLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    {isCheckoutLoading ? <Loader2 size={18} className="animate-spin" /> : <Activity size={18} />}
+                    {isCheckoutLoading ? 'Redirecting to Stripe...' : 'Checkout via Stripe'}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Main Content */}
         <main className="flex-1 flex flex-col min-w-0 pb-safe">
           {/* Topbar */}
@@ -1134,7 +1199,7 @@ export default function App() {
               {/* Credit Balance Badge & Top Up */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={handleTopUp}
+                  onClick={() => setIsTopUpModalOpen(true)}
                   disabled={isCheckoutLoading}
                   className="px-3 py-1 bg-brand/10 hover:bg-brand/20 border border-brand/30 text-brand rounded-full text-xs font-semibold transition-all flex items-center gap-1 shadow-[0_0_10px_rgba(13,127,242,0.15)] hover:shadow-[0_0_15px_rgba(13,127,242,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >

@@ -512,9 +512,9 @@ async def stripe_webhook(request: Request):
         
         if user_id and supabase_admin:
             try:
-                # Grant 50 credits to the user using our new RPC function
-                supabase_admin.rpc("increment_credits", {"row_id": user_id, "amount": 50}).execute()
-                logging.info(f"Successfully added 50 credits to user {user_id} via Stripe Checkout.")
+                # Grant 130 credits to the user using our new RPC function
+                supabase_admin.rpc("increment_credits", {"row_id": user_id, "amount": 130}).execute()
+                logging.info(f"Successfully added 130 credits to user {user_id} via Stripe Checkout.")
             except Exception as e:
                 logging.error(f"Stripe Webhook Error: Failed to increment credits for user {user_id}: {e}")
                 raise HTTPException(status_code=500, detail="Failed to update database")
