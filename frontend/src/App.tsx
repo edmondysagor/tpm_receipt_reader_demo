@@ -33,7 +33,8 @@ import {
   Lock,
   Key,
   Command,
-  Mail
+  Mail,
+  Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from './supabaseClient';
@@ -366,6 +367,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [tableData, setTableData] = useState<DataRow[]>([]);
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
@@ -992,13 +994,95 @@ export default function App() {
           </div>
         </aside>
 
+        {/* Mobile Menu Drawer */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 lg:hidden"
+              />
+              <motion.aside
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed inset-y-0 left-0 w-64 bg-slate-900 border-r border-slate-800/50 shadow-2xl z-50 flex flex-col pt-safe lg:hidden"
+              >
+                <div className="p-6 flex-1 overflow-y-auto">
+                  <div className="flex items-center justify-between gap-3 mb-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-8 bg-brand rounded-full shadow-[0_0_10px_rgba(13,127,242,0.5)]" />
+                      <h1 className="text-xl font-bold tracking-tight text-white line-clamp-1">Receipt Guard</h1>
+                    </div>
+                    <button
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="p-1 -mr-2 text-slate-400 hover:text-white transition-colors rounded-full hover:bg-slate-800"
+                    >
+                      <XIcon size={20} />
+                    </button>
+                  </div>
+
+                  <nav className="space-y-1">
+                    {[
+                      { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+                      { id: 'history', icon: History, label: 'History' },
+                      { id: 'settings', icon: Settings, label: 'Settings' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all ${activeTab === item.id
+                          ? 'bg-brand/10 text-brand font-medium'
+                          : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                          }`}
+                      >
+                        <item.icon size={18} />
+                        {item.label}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                <div className="p-6 border-t border-slate-800/50 pb-safe">
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all font-medium"
+                  >
+                    <LogOut size={18} />
+                    Sign Out
+                  </button>
+                </div>
+              </motion.aside>
+            </>
+          )}
+        </AnimatePresence>
+
         {/* Main Content */}
-        <main className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 flex flex-col min-w-0 pb-safe">
           {/* Topbar */}
-          <header className="h-16 border-b border-slate-800/50 glass-effect flex items-center justify-between px-8 sticky top-0 z-40">
-            <div className="flex items-center gap-4 lg:hidden">
-              <div className="w-2 h-6 bg-brand rounded-full" />
-              <h1 className="text-lg font-bold text-white">TPM Receipt Guard (Beta)</h1>
+          <header className="h-16 border-b border-slate-800/50 glass-effect flex items-center justify-between px-4 sm:px-8 sticky top-0 z-40">
+            <div className="flex items-center gap-3 lg:hidden">
+              <button
+                onClick={() => setIsMobileMenuOpen(true)}
+                className="p-1.5 -ml-1.5 text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-brand/50 rounded-lg"
+              >
+                <Menu size={22} />
+              </button>
+              <div className="w-1.5 h-5 bg-brand rounded-full hidden sm:block" />
+              <h1 className="text-base font-bold text-white tracking-tight truncate sm:max-w-none max-w-[140px]">
+                <span className="hidden sm:inline">TPM Receipt Guard (Beta)</span>
+                <span className="sm:hidden">Receipt Guard</span>
+              </h1>
             </div>
 
             <div className="hidden md:flex items-center gap-2 text-slate-500 text-xs font-mono">
