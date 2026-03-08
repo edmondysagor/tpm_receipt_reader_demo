@@ -1241,15 +1241,17 @@ export default function App() {
                     <AlertCircle className="text-amber-500" size={20} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-amber-500 font-medium text-sm mb-1">
+                    <h4 className="text-amber-500 font-medium text-sm mb-2">
                       Beta Privacy & AI Liability Notice
                     </h4>
-                    <p className="text-amber-400/80 text-xs leading-relaxed">
-                      We DO NOT store your files; data is processed and immediately discarded. Refreshing the page will clear your session history. Data is automatically extracted by the AI and may be subject to inaccuracies due to complex handwriting or poor image quality.
-                      <strong className="text-amber-500 font-semibold block mt-1">
+                    <ul className="text-amber-400/80 text-xs leading-relaxed space-y-1.5 list-disc list-inside">
+                      <li>We <strong>DO NOT</strong> store your files; data is processed and immediately discarded.</li>
+                      <li>Refreshing the page will clear your session history permanently.</li>
+                      <li>Data is automatically extracted by the AI and may contain inaccuracies due to complex handwriting or poor image quality.</li>
+                      <li className="text-amber-500 font-semibold list-none -ml-4 pl-4 before:content-[''] border-l-2 border-amber-500 mt-2 p-1 bg-amber-500/10 rounded-r">
                         Please independently verify key numbers (e.g. Total Amount) and use the inline editing feature to correct any errors before exporting.
-                      </strong>
-                    </p>
+                      </li>
+                    </ul>
                   </div>
                 </div>
 
