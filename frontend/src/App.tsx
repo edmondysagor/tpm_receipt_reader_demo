@@ -1226,8 +1226,8 @@ export default function App() {
                                 </>
                               )}
                             </button>
-                            <p className="text-[10px] text-slate-500/80 max-w-[250px] text-center leading-tight">
-                              By clicking Execute, you acknowledge our <strong className="text-amber-500/70 font-semibold">Beta Privacy & Liability Terms</strong>.
+                            <p className="text-[10px] text-slate-500/80 max-w-[300px] text-center leading-tight">
+                              By clicking Execute, you acknowledge our <strong className="text-amber-500/70 font-semibold">Beta Privacy & Liability Terms</strong>. We are not liable for any financial loss or damages resulting from AI extraction errors.
                             </p>
                           </div>
                         </motion.div>
