@@ -30,14 +30,13 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [language, setLanguage] = React.useState<'en' | 'zh'>('en');
+  const [session, setSession] = React.useState<any>(null);
 
   React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/dashboard');
-      }
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
     });
-  }, [navigate]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-darkbg text-slate-200 font-sans selection:bg-brand selection:text-white relative overflow-hidden">
@@ -71,18 +70,30 @@ export default function LandingPage() {
                 {language === 'en' ? '中文' : 'EN'}
               </button>
               <div className="w-px h-4 bg-white/20"></div>
-              <button
-                onClick={() => navigate('/auth')}
-                className="text-sm font-medium text-slate-400 hover:text-white transition-colors"
-              >
-                {language === 'en' ? 'Log in' : '登入'}
-              </button>
-              <button
-                onClick={() => navigate('/auth')}
-                className="bg-brand text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-brand-600 transition-colors shadow-sm"
-              >
-                {language === 'en' ? 'Start Free' : '免費開始'}
-              </button>
+              {session ? (
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="bg-brand text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-brand-600 transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  {language === 'en' ? 'Back to Dashboard' : '返回主介面'}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate('/auth')}
+                    className="text-sm font-medium text-slate-400 hover:text-white transition-colors"
+                  >
+                    {language === 'en' ? 'Log in' : '登入'}
+                  </button>
+                  <button
+                    onClick={() => navigate('/auth')}
+                    className="bg-brand text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-brand-600 transition-colors shadow-sm"
+                  >
+                    {language === 'en' ? 'Start Free' : '免費開始'}
+                  </button>
+                </>
+              )}
             </div>
 
             <div className="md:hidden flex items-center">
@@ -187,10 +198,14 @@ export default function LandingPage() {
             >
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                 <button
-                  onClick={() => navigate('/auth')}
+                  onClick={() => navigate(session ? '/dashboard' : '/auth')}
                   className="w-full sm:w-auto px-8 py-4 bg-brand text-white rounded-full font-medium text-lg hover:bg-brand-600 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex flex-col items-center justify-center gap-1"
                 >
-                  <span>{language === 'en' ? 'Join the Free Beta (Get 20 Credits)' : '立即加入免費 Beta 版 (送 20 個積分)'}</span>
+                  <span>
+                    {session
+                      ? (language === 'en' ? 'Enter System' : '進入系統')
+                      : (language === 'en' ? 'Join the Free Beta (Get 20 Credits)' : '立即加入免費 Beta 版 (送 20 個積分)')}
+                  </span>
                 </button>
               </div>
               <p className="text-sm text-slate-400 font-medium mt-2 max-w-2xl">

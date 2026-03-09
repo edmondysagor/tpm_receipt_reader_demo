@@ -75,6 +75,7 @@ interface Toast {
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [userName, setUserName] = useState('');
@@ -765,6 +766,13 @@ export default function Dashboard() {
             </div>
 
             <nav className="space-y-1">
+              <button
+                onClick={() => navigate('/')}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition-all"
+              >
+                <CloudUpload size={18} />
+                Home
+              </button>
               {[
                 { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
                 { id: 'history', icon: History, label: 'History' },
