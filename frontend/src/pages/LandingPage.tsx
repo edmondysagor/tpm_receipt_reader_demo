@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   Cloud,
   Users,
+  User,
   Building2,
   Megaphone,
   Code2,
@@ -91,6 +92,16 @@ export default function LandingPage() {
                     <LayoutDashboard className="w-4 h-4" />
                     {language === 'en' ? 'Back to Dashboard' : '返回主介面'}
                   </button>
+
+                  <div className="hidden lg:flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10">
+                    <div className="w-6 h-6 rounded-full bg-brand/20 flex items-center justify-center text-brand">
+                      <User className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-medium text-slate-300 max-w-[120px] truncate">
+                      {session.user.user_metadata?.full_name || session.user.email?.split('@')[0]}
+                    </span>
+                  </div>
+
                   <button
                     onClick={handleLogout}
                     className="text-sm font-medium text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1.5 px-2"
@@ -143,6 +154,19 @@ export default function LandingPage() {
 
               {session ? (
                 <>
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/5 border border-white/10 mb-2">
+                    <div className="w-8 h-8 rounded-full bg-brand/20 flex items-center justify-center text-brand">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-white">
+                        {session.user.user_metadata?.full_name || 'User'}
+                      </span>
+                      <span className="text-xs text-slate-500 truncate max-w-[200px]">
+                        {session.user.email}
+                      </span>
+                    </div>
+                  </div>
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);
