@@ -28,6 +28,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
+const IS_STRIPE_ENABLED = import.meta.env.VITE_ENABLE_STRIPE === 'true' ||
+  window.location.hostname === 'localhost' ||
+  window.location.hostname.includes('dev');
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -495,9 +499,18 @@ export default function LandingPage() {
                       </li>
                     ))}
                 </ul>
-                <button className="w-full py-3 px-6 rounded-full bg-darkbg font-medium text-slate-400 border border-slate-700 hover:bg-slate-800 transition-colors cursor-not-allowed">
-                  {language === 'en' ? 'Coming Soon' : '即將推出'}
-                </button>
+                {IS_STRIPE_ENABLED ? (
+                  <button
+                    onClick={() => navigate('/auth')}
+                    className="w-full py-3 px-6 rounded-full bg-brand text-white font-medium hover:bg-brand-600 transition-colors shadow-lg shadow-brand/20 active:scale-95"
+                  >
+                    {language === 'en' ? 'Purchase Credits' : '購買積分'}
+                  </button>
+                ) : (
+                  <button className="w-full py-3 px-6 rounded-full bg-darkbg font-medium text-slate-400 border border-slate-700 hover:bg-slate-800 transition-colors cursor-not-allowed">
+                    {language === 'en' ? 'Coming Soon' : '即將推出'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

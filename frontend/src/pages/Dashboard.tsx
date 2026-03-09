@@ -74,6 +74,11 @@ interface Toast {
 // In development (Vite), use '/api' which is proxied to localhost:8000.
 const API_BASE = import.meta.env.VITE_API_BASE || '/api';
 
+// Feature Flag: Enable Stripe only if explicitly requested via ENV or on dev/localhost
+const IS_STRIPE_ENABLED = import.meta.env.VITE_ENABLE_STRIPE === 'true' ||
+  window.location.hostname === 'localhost' ||
+  window.location.hostname.includes('dev');
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -926,16 +931,29 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex flex-col items-center justify-center gap-3">
-                  <button
-                    disabled={true}
-                    className="px-8 py-3 w-full bg-slate-800 text-slate-500 font-semibold rounded-lg flex items-center justify-center gap-2 cursor-not-allowed border border-slate-700"
-                  >
-                    <Activity size={18} />
-                    Checkout via Stripe
-                  </button>
-                  <span className="text-brand text-sm font-medium animate-pulse tracking-wide">
-                    ✨ Coming soon ✨
-                  </span>
+                  {IS_STRIPE_ENABLED ? (
+                    <button
+                      onClick={handleTopUp}
+                      disabled={isCheckoutLoading}
+                      className={`px-8 py-3 w-full bg-gradient-to-r from-brand to-blue-600 hover:from-blue-500 hover:to-brand text-white font-semibold rounded-lg shadow-[0_0_15px_rgba(13,127,242,0.5)] transition-all flex items-center justify-center gap-2 ${isCheckoutLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      {isCheckoutLoading ? <Loader2 size={18} className="animate-spin" /> : <Activity size={18} />}
+                      {isCheckoutLoading ? 'Redirecting to Stripe...' : 'Checkout via Stripe'}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        disabled={true}
+                        className="px-8 py-3 w-full bg-slate-800 text-slate-500 font-semibold rounded-lg flex items-center justify-center gap-2 cursor-not-allowed border border-slate-700"
+                      >
+                        <Lock size={18} />
+                        Coming Soon
+                      </button>
+                      <span className="text-brand text-sm font-medium animate-pulse tracking-wide">
+                        ✨ Coming soon ✨
+                      </span>
+                    </>
+                  )}
                 </div>
               </motion.div>
             </motion.div>
