@@ -21,7 +21,8 @@ import {
   Globe,
   UploadCloud,
   Bot,
-  FileSpreadsheet
+  FileSpreadsheet,
+  LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -36,7 +37,18 @@ export default function LandingPage() {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
 
   return (
     <div className="min-h-screen bg-darkbg text-slate-200 font-sans selection:bg-brand selection:text-white relative overflow-hidden">
@@ -71,13 +83,23 @@ export default function LandingPage() {
               </button>
               <div className="w-px h-4 bg-white/20"></div>
               {session ? (
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="bg-brand text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-brand-600 transition-colors shadow-sm flex items-center gap-2"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  {language === 'en' ? 'Back to Dashboard' : '返回主介面'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="bg-brand text-white px-6 py-2 rounded-full text-sm font-medium hover:bg-brand-600 transition-colors shadow-sm flex items-center gap-2"
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    {language === 'en' ? 'Back to Dashboard' : '返回主介面'}
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="text-sm font-medium text-slate-400 hover:text-red-400 transition-colors flex items-center gap-1.5 px-2"
+                    title={language === 'en' ? 'Sign Out' : '登出'}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span className="hidden lg:inline">{language === 'en' ? 'Sign Out' : '登出'}</span>
+                  </button>
+                </div>
               ) : (
                 <>
                   <button
@@ -118,24 +140,52 @@ export default function LandingPage() {
                 <Globe className="w-5 h-5" />
                 {language === 'en' ? '切換至中文' : 'Switch to English'}
               </button>
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  navigate('/auth');
-                }}
-                className="w-full text-center px-4 py-2 text-base font-medium text-slate-400 hover:text-white"
-              >
-                {language === 'en' ? 'Log in' : '登入'}
-              </button>
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  navigate('/auth');
-                }}
-                className="w-full bg-brand text-white px-4 py-2 rounded-lg text-base font-medium hover:bg-brand-600"
-              >
-                {language === 'en' ? 'Start Free' : '免費開始'}
-              </button>
+
+              {session ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      navigate('/dashboard');
+                    }}
+                    className="w-full bg-brand text-white px-4 py-3 rounded-lg text-base font-medium hover:bg-brand-600 flex items-center justify-center gap-2 mt-2"
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                    {language === 'en' ? 'Back to Dashboard' : '返回主介面'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full text-center px-4 py-3 text-base font-medium text-slate-400 hover:text-red-400 flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    {language === 'en' ? 'Sign Out' : '登出'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      navigate('/auth');
+                    }}
+                    className="w-full text-center px-4 py-2 text-base font-medium text-slate-400 hover:text-white"
+                  >
+                    {language === 'en' ? 'Log in' : '登入'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      navigate('/auth');
+                    }}
+                    className="w-full bg-brand text-white px-4 py-2 rounded-lg text-base font-medium hover:bg-brand-600"
+                  >
+                    {language === 'en' ? 'Start Free' : '免費開始'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
