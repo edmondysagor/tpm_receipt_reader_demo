@@ -24,11 +24,20 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
 
 export default function LandingPage() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [language, setLanguage] = React.useState<'en' | 'zh'>('en');
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/dashboard');
+      }
+    });
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-darkbg text-slate-200 font-sans selection:bg-brand selection:text-white relative overflow-hidden">
