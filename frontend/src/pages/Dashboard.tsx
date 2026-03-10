@@ -706,7 +706,7 @@ export default function Dashboard() {
             <motion.div
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="glass-effect rounded-2xl w-full max-w-lg p-8 shadow-2xl border border-brand/20 relative overflow-hidden"
+              className="glass-effect rounded-2xl w-full max-w-lg p-8 shadow-2xl border border-brand/20 relative overflow-y-auto max-h-[85vh] custom-scrollbar"
             >
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand to-purple-500" />
 
