@@ -196,10 +196,10 @@ export default function Dashboard() {
       .catch(() => {
         // Fallback if backend is unreachable
         setAvailableModels([
-          { id: 'qwen3.5:397b-cloud', name: 'Qwen 3.5 397B (Cloud)', description: 'High accuracy, cloud-based' },
-          { id: 'qwen3-vl:8b', name: 'Qwen 3 VL 8B (Local)', description: 'Fast, local testing' },
+          { id: 'gemma4:31b', name: 'Gemma 4 31B', description: 'High accuracy, multimodal AI' },
+          { id: 'qwen2.5-vl:72b', name: 'Qwen 2.5 VL 72B', description: 'Cloud vision model' },
         ]);
-        setSelectedModel('qwen3.5:397b-cloud');
+        setSelectedModel('gemma4:31b');
       });
   }, []);
 
@@ -440,7 +440,7 @@ export default function Dashboard() {
       // 1. Upload files to backend
       const formData = new FormData();
       selectedFiles.forEach(file => formData.append('files', file));
-      formData.append('model', 'qwen3.5:4b');
+      formData.append('model', selectedModel || 'gemma4:31b');
 
       // Get current session token for credit check
       const { data: sessionData } = await auth.getSession();

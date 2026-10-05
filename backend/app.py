@@ -193,14 +193,12 @@ def read_root():
     return HTMLResponse(content="<h1>Receipt Guard Backend Running</h1>")
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "https://ollama.com")
-DEFAULT_MODEL = os.getenv("MODEL_NAME", "qwen3.5:397b-cloud")
+DEFAULT_MODEL = os.getenv("MODEL_NAME", "gemma4:31b")
 
 AVAILABLE_MODELS = [
-    {"id": "qwen3.5:397b-cloud", "name": "Qwen 3.5 397B (Cloud)", "description": "High accuracy, cloud-based"},
-    {"id": "qwen3-vl:8b", "name": "Qwen 3 VL 8B (Local)", "description": "Fast, local testing"},
-    {"id": "qwen3-vl:4b", "name": "Qwen 3 VL 4B (Local)", "description": "Lightweight, fastest"},
-    {"id": "qwen3.5:4b", "name": "Qwen 3.5 4B (Local)", "description": "Compact text model"},
-    {"id": "qwen3.5:2b", "name": "Qwen 3.5 2B (Local)", "description": "Ultra-light text model"},
+    {"id": "gemma4:31b", "name": "Gemma 4 31B", "description": "High accuracy, multimodal AI"},
+    {"id": "qwen2.5-vl:72b", "name": "Qwen 2.5 VL 72B", "description": "Cloud vision model"},
+    {"id": "qwen2.5-vl:7b", "name": "Qwen 2.5 VL 7B", "description": "Fast lightweight vision model"},
 ]
 
 jobs = {}
