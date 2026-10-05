@@ -19,9 +19,6 @@ api_key.md
 .receipt_ocr_api_key.txt
 user_api_key.txt
 
-# Supabase (do not commit real keys)
-# supabaseClient.js contains placeholder keys — update before production
-
 # OS files
 .DS_Store
 Thumbs.db
@@ -38,7 +35,11 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Uploads & temp
+# Uploads & temp & test assets
 uploads/
 tmp/
 temp/
+Input Pic/
+image/
+linkedin_post_*.png
+saas-landing-page-template/
