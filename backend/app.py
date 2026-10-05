@@ -5,39 +5,44 @@ import os
 import uuid
 import asyncio
 from typing import List, Optional, Annotated
+from contextlib import asynccontextmanager
+
 from pydantic import BaseModel
-
-from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Header, HTTPException, Request, Depends
+from fastapi import FastAPI, UploadFile, File, BackgroundTasks, Header, HTTPException, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from supabase import create_client, Client as SupabaseClient
-
+from fastapi.responses import StreamingResponse, HTMLResponse
+from dotenv import load_dotenv
+from ollama import Client
+import stripe
 import fitz  # PyMuPDF
 import requests
 from PIL import Image
 import io
-# Trigger reload
-from fastapi.responses import HTMLResponse
-from dotenv import load_dotenv
-from ollama import Client
-import stripe
+
+import db
+import auth
+from auth import get_current_user
 
 load_dotenv()
+logging.basicConfig(level=logging.INFO)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize Database
+    try:
+        db.init_db()
+    except Exception as e:
+        logging.error(f"Database initialization error on startup: {e}")
+    yield
+    # Shutdown logic if needed
+
+app = FastAPI(lifespan=lifespan)
 
 # --- Stripe Configuration ---
 stripe.api_key = os.getenv("STRIPE_API_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-# E.g., price_1T8i9DRr0KsGcXMwOsnYXHMX
 STRIPE_PRICE_ID = os.getenv("STRIPE_PRICE_ID", "")
-# Ensure your frontend URL is set correctly in env (for redirects)
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-
-# --- Supabase Admin Client (server-side, uses service_role key) ---
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
-supabase_admin: SupabaseClient = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY else None
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,168 +52,149 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+# --- Auth Schemas ---
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    full_name: Optional[str] = None
 
-security = HTTPBearer()
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """FastAPI Dependency to verify Supabase JWT and return the user ID."""
-    token = credentials.credentials
-    if not supabase_admin:
-        raise HTTPException(status_code=500, detail="Supabase admin client not configured")
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
+# --- Auth Endpoints ---
+
+@app.post("/auth/register")
+def register(req: RegisterRequest):
+    email = req.email.strip().lower()
+    existing = db.get_user_by_email(email)
+    if existing:
+        raise HTTPException(status_code=400, detail="An account with this email already exists.")
+    
+    hashed_pwd = auth.hash_password(req.password)
+    user = db.create_user(
+        email=email,
+        password_hash=hashed_pwd,
+        full_name=req.full_name,
+        auth_provider="local",
+        starting_credits=10
+    )
+    token = auth.create_access_token(user["id"], user["email"], user.get("full_name"))
+    credits_balance = db.get_credits(user["id"])
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "full_name": user.get("full_name"),
+            "avatar_url": user.get("avatar_url")
+        },
+        "credits_balance": credits_balance
+    }
+
+@app.post("/auth/login")
+def login(req: LoginRequest):
+    email = req.email.strip().lower()
+    user = db.get_user_by_email(email)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    
+    if not user.get("password_hash") or not auth.verify_password(req.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    
+    token = auth.create_access_token(user["id"], user["email"], user.get("full_name"))
+    credits_balance = db.get_credits(user["id"])
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "full_name": user.get("full_name"),
+            "avatar_url": user.get("avatar_url")
+        },
+        "credits_balance": credits_balance
+    }
+
+@app.post("/auth/google")
+def google_auth(req: GoogleAuthRequest):
     try:
-        user_resp = supabase_admin.auth.get_user(token)
-        if not user_resp or not user_resp.user:
-            raise HTTPException(status_code=401, detail="Invalid session")
-        return user_resp.user.id
-    except Exception as e:
-        logging.error(f"Token verification failed: {e}")
-        raise HTTPException(status_code=401, detail="Invalid token")
+        payload = auth.verify_google_credential(req.credential)
+        email = payload.get("email", "").strip().lower()
+        if not email:
+            raise HTTPException(status_code=400, detail="Google token does not contain an email address.")
+        
+        full_name = payload.get("name") or payload.get("given_name")
+        avatar_url = payload.get("picture")
 
-from fastapi.responses import HTMLResponse
+        user = db.get_user_by_email(email)
+        if not user:
+            user = db.create_user(
+                email=email,
+                password_hash=None,
+                full_name=full_name,
+                auth_provider="google",
+                avatar_url=avatar_url,
+                starting_credits=10
+            )
+        else:
+            # Update user metadata if changed
+            if avatar_url and not user.get("avatar_url"):
+                db.update_user_profile(user["id"], full_name=full_name, avatar_url=avatar_url)
+
+        token = auth.create_access_token(user["id"], user["email"], full_name or user.get("full_name"))
+        credits_balance = db.get_credits(user["id"])
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": user["id"],
+                "email": user["email"],
+                "full_name": full_name or user.get("full_name"),
+                "avatar_url": avatar_url or user.get("avatar_url")
+            },
+            "credits_balance": credits_balance
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Google authentication error: {e}")
+        raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
+
+@app.get("/auth/me")
+def get_me(user_id: str = Depends(get_current_user)):
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    credits_balance = db.get_credits(user_id)
+    return {
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "full_name": user.get("full_name"),
+            "avatar_url": user.get("avatar_url"),
+            "auth_provider": user.get("auth_provider")
+        },
+        "credits_balance": credits_balance
+    }
+
+@app.get("/user/credits")
+def get_user_credits(user_id: str = Depends(get_current_user)):
+    credits_balance = db.get_credits(user_id)
+    return {"credits_balance": credits_balance}
 
 @app.get("/")
 def read_root():
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Receipt Reader API Test</title>
-        <style>
-            body { font-family: Arial, sans-serif; padding: 40px; background: #f8f9fa; }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            h1 { color: #333; }
-            .btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 15px; }
-            .btn:hover { background: #0056b3; }
-            .btn:disabled { background: #ccc; cursor: not-allowed; }
-            .progress-bar-bg { width: 100%; background-color: #e0e0e0; border-radius: 4px; margin-top: 20px; overflow: hidden; display: none; }
-            .progress-bar-fill { height: 20px; background-color: #28a745; width: 0%; transition: width 0.3s; }
-            .log-box { background: #333; color: #fff; padding: 15px; border-radius: 4px; height: 150px; overflow-y: auto; margin-top: 15px; font-family: monospace; display: none; }
-            .result-box { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 15px; border-radius: 4px; margin-top: 15px; display: none; white-space: pre-wrap; font-family: monospace;}
-            .error-box { background: #ffebee; border: 1px solid #ffcdd2; color: #b71c1c; padding: 15px; border-radius: 4px; margin-top: 15px; display: none; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Backend Upload & LLM Test</h1>
-            <p>Select multiple images or PDFs to test the OCR AI API.</p>
-            
-            <form id="uploadForm">
-                <input id="fileInput" name="files" type="file" multiple accept="image/*,.pdf" style="font-size: 16px;">
-                <br>
-                <button type="submit" id="submitBtn" class="btn">Upload & Test AI</button>
-            </form>
-
-            <div class="progress-bar-bg" id="progressBarBg">
-                <div class="progress-bar-fill" id="progressBarFill"></div>
-            </div>
-
-            <div class="log-box" id="logBox"></div>
-            <div class="result-box" id="resultBox"></div>
-            <div class="error-box" id="errorBox"></div>
-        </div>
-
-        <script>
-            const form = document.getElementById('uploadForm');
-            const fileInput = document.getElementById('fileInput');
-            const submitBtn = document.getElementById('submitBtn');
-            const progressBarBg = document.getElementById('progressBarBg');
-            const progressBarFill = document.getElementById('progressBarFill');
-            const logBox = document.getElementById('logBox');
-            const resultBox = document.getElementById('resultBox');
-            const errorBox = document.getElementById('errorBox');
-
-            function logMessage(msg) {
-                const p = document.createElement('div');
-                p.textContent = `> ${msg}`;
-                logBox.appendChild(p);
-                logBox.scrollTop = logBox.scrollHeight;
-            }
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (fileInput.files.length === 0) {
-                    alert('Please select files first.');
-                    return;
-                }
-
-                // Reset UI
-                submitBtn.disabled = true;
-                progressBarBg.style.display = 'block';
-                progressBarFill.style.width = '0%';
-                logBox.style.display = 'block';
-                resultBox.style.display = 'none';
-                errorBox.style.display = 'none';
-                logBox.innerHTML = '';
-
-                logMessage('Uploading files...');
-
-                const formData = new FormData();
-                for (let i = 0; i < fileInput.files.length; i++) {
-                    formData.append('files', fileInput.files[i]);
-                }
-
-                try {
-                    const response = await fetch('/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (!response.ok) throw new Error('Upload failed');
-                    
-                    const data = await response.json();
-                    const jobId = data.job_id;
-                    logMessage(`Upload complete! Job ID: ${jobId}`);
-                    logMessage('Connecting to AI Processing Stream...');
-
-                    // Start listening to SSE stream
-                    const evtSource = new EventSource(`/progress/${jobId}`);
-                    
-                    evtSource.onmessage = (event) => {
-                        const state = JSON.parse(event.data);
-                        
-                        logMessage(`[${state.progress}%] ${state.status}`);
-                        progressBarFill.style.width = `${state.progress}%`;
-
-                        if (state.progress === 100) {
-                            evtSource.close(); // Close stream when done
-                            submitBtn.disabled = false;
-                            
-                            if (state.error) {
-                                errorBox.style.display = 'block';
-                                errorBox.textContent = `Error: ${state.error}`;
-                            } else if (state.result) {
-                                resultBox.style.display = 'block';
-                                resultBox.textContent = JSON.stringify(state.result, null, 2);
-                                logMessage('Successfully received parsed JSON from AI!');
-                            }
-                        }
-                    };
-
-                    evtSource.onerror = (err) => {
-                        evtSource.close();
-                        submitBtn.disabled = false;
-                        errorBox.style.display = 'block';
-                        errorBox.textContent = 'Lost connection to progress stream.';
-                    };
-
-                } catch (err) {
-                    submitBtn.disabled = false;
-                    errorBox.style.display = 'block';
-                    errorBox.textContent = err.message;
-                }
-            });
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
-
+    return HTMLResponse(content="<h1>Receipt Guard Backend Running</h1>")
 
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "https://ollama.com")
 DEFAULT_MODEL = os.getenv("MODEL_NAME", "qwen3.5:397b-cloud")
 
-# Available models for the frontend selector
 AVAILABLE_MODELS = [
     {"id": "qwen3.5:397b-cloud", "name": "Qwen 3.5 397B (Cloud)", "description": "High accuracy, cloud-based"},
     {"id": "qwen3-vl:8b", "name": "Qwen 3 VL 8B (Local)", "description": "Fast, local testing"},
@@ -228,7 +214,6 @@ def update_job_progress(job_id: str, progress: int, status: str, result: Optiona
     }
 
 def call_ollama(images: List[str], model_name: str = None):
-    """Call Ollama LLM with the given images using the specified model."""
     if not model_name:
         model_name = DEFAULT_MODEL
     prompt = """Analyze these receipt/invoice images and extract data. Each image is a SEPARATE document.
@@ -259,9 +244,6 @@ Rules:
 - If fields are unclear, infer reasonably or use null.
 - DO NOT merge or deduplicate identical receipts. Output them as separate entries.
 """
-    
-    # Initialize Ollama client with host and auth header from environment
-    # Ensure api_key is read (default to empty string to avoid None + string concatenation err)
     api_key = os.environ.get('OLLAMA_API_KEY', '')
     client = Client(
         host=OLLAMA_HOST,
@@ -282,15 +264,11 @@ Rules:
         stream=False, 
         format='json'
     )
-    
-    # Return formatted to match what the async process loop expects
     return {"response": response.get('message', {}).get('content', '')}
 
-
-BATCH_SIZE = 5  # Max images per LLM call
+BATCH_SIZE = 5
 
 def parse_ollama_response(raw_json_str: str) -> list:
-    """Parse and clean LLM JSON response into a list of receipt dicts."""
     clean_str = raw_json_str.strip()
     if clean_str.startswith("```json"):
         clean_str = clean_str[7:]
@@ -304,18 +282,13 @@ def parse_ollama_response(raw_json_str: str) -> list:
         result = [parsed_data]
     return result
 
-
-# --- Image Compression ---
 MAX_IMAGE_WIDTH = 768
 JPEG_QUALITY = 70
 
 def compress_image(img_bytes: bytes) -> bytes:
-    """Resize image to max width and convert to JPEG to reduce token usage."""
     img = Image.open(io.BytesIO(img_bytes))
-    # Convert RGBA/P to RGB for JPEG compatibility
     if img.mode in ('RGBA', 'P', 'LA'):
         img = img.convert('RGB')
-    # Resize if wider than max
     if img.width > MAX_IMAGE_WIDTH:
         ratio = MAX_IMAGE_WIDTH / img.width
         new_size = (MAX_IMAGE_WIDTH, int(img.height * ratio))
@@ -323,7 +296,6 @@ def compress_image(img_bytes: bytes) -> bytes:
     output = io.BytesIO()
     img.save(output, format='JPEG', quality=JPEG_QUALITY)
     return output.getvalue()
-
 
 async def process_document_task(job_id: str, file_paths: List[str], model_name: str = None, user_id: str = None):
     try:
@@ -335,7 +307,7 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
         
         for path in file_paths:
             ext = os.path.splitext(path)[1].lower()
-            raw_images = []  # collect raw bytes first
+            raw_images = []
             
             if ext == '.pdf':
                 doc = fitz.open(path)
@@ -350,7 +322,6 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
                 update_job_progress(job_id, 100, f"Error: Unsupported file type '{ext}'", error=f"Unsupported file type '{ext}'")
                 return
             
-            # Compress each image before base64 encoding
             for raw_data in raw_images:
                 total_original_kb += len(raw_data) / 1024
                 compressed = compress_image(raw_data)
@@ -364,7 +335,6 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
         total_images = len(all_images_base64)
         savings_pct = (1 - total_compressed_kb / total_original_kb) * 100 if total_original_kb > 0 else 0
         
-        # Split into batches
         batches = [all_images_base64[i:i + BATCH_SIZE] for i in range(0, total_images, BATCH_SIZE)]
         num_batches = len(batches)
         
@@ -378,7 +348,6 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
             
             for batch_idx, batch_images in enumerate(batches):
                 batch_num = batch_idx + 1
-                # Progress: 20% (extraction done) → 90% (all batches done), split evenly
                 batch_start_pct = 20 + int((batch_idx / num_batches) * 70)
                 batch_end_pct = 20 + int(((batch_idx + 1) / num_batches) * 70)
                 
@@ -405,15 +374,15 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
             
             update_job_progress(job_id, 92, f"Finalizing {len(all_results)} receipts...")
             
-            # 1. Assign sequential SEQ NO across all batches first
+            # 1. Assign sequential SEQ NO
             for i, item in enumerate(all_results):
                 seq_number_str = f"{(i + 1):05d}"
                 new_item = {"SEQ NO": seq_number_str}
                 new_item.update(item)
                 all_results[i] = new_item
             
-            # 2. Duplicate Check: Flag instead of remove
-            seen = {} # key: (merchant, date, amount) -> value: original SEQ NO
+            # 2. Duplicate Check
+            seen = {}
             dup_count = 0
             for i, item in enumerate(all_results):
                 key = (
@@ -422,7 +391,6 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
                     str(item.get('total_amount', '')).strip()
                 )
                 
-                # Assume empty keys are not duplicates of each other to avoid false positives
                 if not key[0] and not key[1] and not key[2]:
                     continue
                     
@@ -437,12 +405,11 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
             if dup_count > 0:
                 logging.info(f"Job {job_id}: Flagged {dup_count} duplicate(s).")
                 
-            # --- Post-deduction: deduct credits based on number of files processed ---
-            if user_id and supabase_admin:
+            # Post-deduction of credits
+            if user_id:
                 num_files = len(file_paths)
                 try:
-                    # Atomically decrement by number of files processed
-                    supabase_admin.rpc("decrement_credits", {"row_id": user_id, "amount": num_files}).execute()
+                    db.decrement_credits(user_id, num_files)
                     logging.info(f"Job {job_id}: Deducted {num_files} credit(s) for user {user_id}")
                 except Exception as credit_err:
                     logging.error(f"Job {job_id}: Failed to deduct credits for user {user_id}: {credit_err}")
@@ -457,23 +424,20 @@ async def process_document_task(job_id: str, file_paths: List[str], model_name: 
     except Exception as e:
         update_job_progress(job_id, 100, "Failed with an internal error", error=str(e))
     finally:
-        # Cleanup uploaded files from temp directory
         for path in file_paths:
             try:
                 os.remove(path)
             except:
                 pass
-# --- Stripe Payment Endpoints ---
+
+# --- Stripe Endpoints ---
 
 @app.post("/create-checkout-session")
 async def create_checkout_session(user_id: str = Depends(get_current_user)):
-    """Creates a Stripe Checkout Session for purchasing credits."""
     if not stripe.api_key or not STRIPE_PRICE_ID:
         raise HTTPException(status_code=500, detail="Stripe is not configured on the server.")
         
     try:
-        
-        # Create checkout session
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[
@@ -483,20 +447,17 @@ async def create_checkout_session(user_id: str = Depends(get_current_user)):
                 },
             ],
             mode='payment',
-            success_url=f"{FRONTEND_URL}/?payment=success",
-            cancel_url=f"{FRONTEND_URL}/?payment=cancelled",
-            client_reference_id=user_id,  # Crucial: links payment to Supabase user
+            success_url=f"{FRONTEND_URL}/dashboard?payment=success",
+            cancel_url=f"{FRONTEND_URL}/dashboard?payment=cancelled",
+            client_reference_id=user_id,
         )
         return {"url": checkout_session.url}
-        
     except Exception as e:
         logging.error(f"Failed to create checkout session: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.post("/stripe-webhook")
 async def stripe_webhook(request: Request):
-    """Listens for successful Stripe payments and grants credits."""
     payload = await request.body()
     sig_header = request.headers.get("Stripe-Signature")
     
@@ -507,38 +468,27 @@ async def stripe_webhook(request: Request):
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
-    except ValueError as e:
-        # Invalid payload
+    except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError as e:
-        # Invalid signature
+    except stripe.error.SignatureVerificationError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # Handle the checkout.session.completed event
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        
         user_id = session.get('client_reference_id')
-        
-        if user_id and supabase_admin:
+        if user_id:
             try:
-                # Grant 130 credits to the user using our new RPC function
-                supabase_admin.rpc("increment_credits", {"row_id": user_id, "amount": 130}).execute()
+                db.increment_credits(user_id, 130)
                 logging.info(f"Successfully added 130 credits to user {user_id} via Stripe Checkout.")
             except Exception as e:
                 logging.error(f"Stripe Webhook Error: Failed to increment credits for user {user_id}: {e}")
                 raise HTTPException(status_code=500, detail="Failed to update database")
-        else:
-            logging.warning("Checkout Session completed but no client_reference_id (user_id) found.")
 
     return {"status": "success"}
 
-
 @app.get("/models")
 def list_models():
-    """Return the list of available LLM models for the frontend selector."""
     return {"models": AVAILABLE_MODELS, "default": DEFAULT_MODEL}
-
 
 @app.post("/upload")
 async def upload_files(
@@ -550,30 +500,24 @@ async def upload_files(
     if not files:
         return {"error": "No files uploaded."}
     
-    # --- Credit Pre-check ---
-    if supabase_admin:
-        try:
-            
-            # Check credits_balance from user_credits table
-            profile = supabase_admin.table("user_credits").select("id, credits_balance").eq("id", user_id).single().execute()
-            credits_balance = profile.data.get("credits_balance", 0) if profile.data else 0
-            
-            required_credits = len(files)
-            if credits_balance < required_credits:
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "message": f"Your account has insufficient credits. You need {required_credits} credits but only have {credits_balance}. Please top up at the Billing Center.",
-                        "error_code": "INSUFFICIENT_CREDITS"
-                    }
-                )
-            logging.info(f"Credit check passed for user {user_id}: {credits_balance} credit(s) remaining, {required_credits} required")
-        except HTTPException:
-            raise  # Re-raise the 403
-        except Exception as e:
-            logging.warning(f"Credit check failed (non-blocking): {e}")
+    # Credit pre-check
+    try:
+        credits_balance = db.get_credits(user_id)
+        required_credits = len(files)
+        if credits_balance < required_credits:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "message": f"Your account has insufficient credits. You need {required_credits} credits but only have {credits_balance}. Please top up at the Billing Center.",
+                    "error_code": "INSUFFICIENT_CREDITS"
+                }
+            )
+        logging.info(f"Credit check passed for user {user_id}: {credits_balance} remaining, {required_credits} required")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.warning(f"Credit check warning: {e}")
     
-    # Validate model choice
     valid_model_ids = [m["id"] for m in AVAILABLE_MODELS]
     selected_model = model if model and model in valid_model_ids else DEFAULT_MODEL
         
@@ -589,18 +533,12 @@ async def upload_files(
         saved_paths.append(file_path)
 
     update_job_progress(job_id, 0, f"Upload complete, using model: {selected_model}")
-    
-    # Pass user_id so we can deduct credits after successful analysis
     background_tasks.add_task(process_document_task, job_id, saved_paths, selected_model, user_id)
     
     return {"job_id": job_id, "message": "Files uploaded successfully.", "model": selected_model}
 
 @app.get("/progress/{job_id}")
 async def job_progress(job_id: str):
-    """
-    Server-Sent Events endpoint to stream progress to frontend.
-    Frontend should use EventSource("/progress/{job_id}")
-    """
     async def event_generator():
         last_progress = -1
         last_status = ""
@@ -610,15 +548,12 @@ async def job_progress(job_id: str):
                 yield f"data: {json.dumps({'error': 'Job not found', 'progress': 100})}\n\n"
                 break
             
-            # Only send event if state changed
             if job["progress"] != last_progress or job["status"] != last_status:
-                # Need to use json.dumps for SSE data payload
                 yield f"data: {json.dumps(job)}\n\n"
                 last_progress = job["progress"]
                 last_status = job["status"]
 
             if job["progress"] == 100 or job.get("error"):
-                # Done, exit generator (closes SSE connection)
                 break
             
             await asyncio.sleep(0.5)

@@ -7,5 +7,9 @@ ollama
 python-dotenv
 pillow
 google-generativeai
-supabase
 stripe
+psycopg2-binary
+bcrypt
+passlib
+PyJWT
+google-auth

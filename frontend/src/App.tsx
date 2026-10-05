@@ -1,10 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import LandingPage from './pages/LandingPage';
 import AuthScreen from './pages/AuthScreen';
 import Dashboard from './pages/Dashboard';
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+
 export default function App() {
-  return (
+  const content = (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -15,4 +18,14 @@ export default function App() {
       </Routes>
     </BrowserRouter>
   );
+
+  if (GOOGLE_CLIENT_ID) {
+    return (
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        {content}
+      </GoogleOAuthProvider>
+    );
+  }
+
+  return content;
 }

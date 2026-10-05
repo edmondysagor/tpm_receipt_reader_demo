@@ -26,7 +26,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { auth } from '../authClient';
 
 const IS_STRIPE_ENABLED = import.meta.env.VITE_ENABLE_STRIPE === 'true' ||
   window.location.hostname === 'localhost' ||
@@ -39,11 +39,11 @@ export default function LandingPage() {
   const [session, setSession] = React.useState<any>(null);
 
   React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+    auth.getSession().then(({ data: { session: currentSession } }) => {
       setSession(currentSession);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -51,7 +51,7 @@ export default function LandingPage() {
   }, []);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await auth.signOut();
     navigate('/');
   };
 

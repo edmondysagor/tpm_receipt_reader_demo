@@ -38,7 +38,7 @@ import {
   Menu
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { supabase } from '../supabaseClient';
+import { auth } from '../authClient';
 
 interface DataRow {
   id: string;
@@ -87,42 +87,36 @@ export default function Dashboard() {
   const [userEmail, setUserEmail] = useState('');
   const [creditsBalance, setCreditsBalance] = useState<number | null>(null);
 
-  // Fetch credits balance from Supabase profiles table
-  const fetchCredits = async (userId: string) => {
+  // Fetch credits balance
+  const fetchCredits = async () => {
     try {
-      const { data, error } = await supabase
-        .from('user_credits')
-        .select('credits_balance')
-        .eq('id', userId)
-        .single();
-      if (!error && data) {
-        setCreditsBalance(data.credits_balance ?? 0);
-      }
+      const balance = await auth.getCredits();
+      setCreditsBalance(balance);
     } catch (e) {
       console.warn('Failed to fetch credits:', e);
     }
   };
 
-  // Listen to Supabase auth state changes
+  // Listen to auth state changes
   useEffect(() => {
     // Check current session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
       if (session?.user) {
-        setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User');
+        setUserName(session.user.full_name || session.user.email?.split('@')[0] || 'User');
         setUserEmail(session.user.email || '');
-        fetchCredits(session.user.id);
+        fetchCredits();
       }
       setAuthLoading(false);
     });
 
     // Subscribe to auth changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session);
       if (session?.user) {
-        setUserName(session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User');
+        setUserName(session.user.full_name || session.user.email?.split('@')[0] || 'User');
         setUserEmail(session.user.email || '');
-        fetchCredits(session.user.id);
+        fetchCredits();
       } else {
         setUserName('');
         setUserEmail('');
@@ -220,7 +214,7 @@ export default function Dashboard() {
   const handleTopUp = async () => {
     try {
       setIsCheckoutLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
       // Replace API_BASE with your actual backend URL or use the existing const
@@ -449,7 +443,7 @@ export default function Dashboard() {
       formData.append('model', 'qwen3.5:4b');
 
       // Get current session token for credit check
-      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: sessionData } = await auth.getSession();
       const accessToken = sessionData?.session?.access_token;
 
       const uploadRes = await fetch(`${API_BASE}/upload`, {
@@ -546,9 +540,7 @@ export default function Dashboard() {
             });
             addToast(`Analysis complete — ${state.result.length} receipt(s) extracted`, 'success');
             // Refresh credit balance after successful analysis
-            supabase.auth.getSession().then(({ data: { session } }) => {
-              if (session?.user) fetchCredits(session.user.id);
-            });
+            fetchCredits();
           }
 
           // Clear files
@@ -621,7 +613,7 @@ export default function Dashboard() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await auth.signOut();
     setIsAuthenticated(false);
   };
 
