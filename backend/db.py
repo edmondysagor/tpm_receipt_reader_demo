@@ -7,16 +7,19 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+def get_database_url():
+    return os.getenv("DATABASE_PUBLIC_URL") or os.getenv("DATABASE_URL", "")
 
 def get_connection():
-    if not DATABASE_URL:
-        raise ValueError("DATABASE_URL environment variable is not set")
-    return psycopg2.connect(DATABASE_URL)
+    db_url = get_database_url()
+    if not db_url:
+        raise ValueError("DATABASE_URL / DATABASE_PUBLIC_URL environment variable is not set")
+    return psycopg2.connect(db_url)
 
 def init_db():
     """Create users and user_credits tables if they do not exist."""
-    if not DATABASE_URL:
+    db_url = get_database_url()
+    if not db_url:
         logger.warning("DATABASE_URL is not set. Skipping database initialization.")
         return
 
